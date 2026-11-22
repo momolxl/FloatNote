@@ -1,0 +1,42 @@
+# 构建产物
+bin/
+obj/
+dist/
+publish/
+_verify/
+*.user
+*.suo
+
+# 本地测试与诊断工具（不在公开仓库中）
+Tests.cs
+UiTest.cs
+ClickTest.cs
+ClickShot.cs
+ShotTest.cs
+ShotE2E.cs
+Probe.cs
+WinList.cs
+Perf.cs
+PerfProbe.cs
+Final.cs
+AlphaTest.cs
+Alpha2.cs
+Alpha3.cs
+ZoomTest.cs
+
+# 调试截图（可能包含桌面内容）
+_*.png
+docs/
+
+# 运行时数据（绝不提交）
+state.json
+media/
+crash.log
+trace.log
+
+# IDE / 系统
+.vs/
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

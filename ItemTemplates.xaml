@@ -1,0 +1,133 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:local="clr-namespace:FloatNote">
+
+  <!-- 注意：本字典可能先于 Theme.xaml 被解析，故一律使用 DynamicResource，
+       避免跨字典的 StaticResource 解析顺序问题。 -->
+
+  <!-- ===== 删除按钮 ===== -->
+  <Style x:Key="TinyLink" TargetType="Button">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Foreground" Value="{DynamicResource InkSoft}" />
+    <Setter Property="FontSize" Value="9.5" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Padding" Value="2,0" />
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border Background="{TemplateBinding Background}" CornerRadius="3" Padding="{TemplateBinding Padding}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter Property="Foreground" Value="#C0392B" />
+              <Setter Property="Background" Value="#0E000000" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- ===== 文字条目 ===== -->
+  <DataTemplate x:Key="TextItemTemplate" DataType="{x:Type local:NoteItem}">
+    <Border Background="{DynamicResource ItemBg}" CornerRadius="7"
+            Padding="9,7,9,5" Margin="0,0,4,6"
+            BorderBrush="#0F000000" BorderThickness="1">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- TextBox 而非 TextBlock：文字可直接拖选复制 -->
+        <TextBox Grid.Row="0"
+                 Text="{Binding Text, Mode=OneWay}"
+                 IsReadOnly="True"
+                 TextWrapping="Wrap"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 Padding="0"
+                 FontSize="12.5"
+                 FontFamily="{DynamicResource UiFont}"
+                 Foreground="{DynamicResource Ink}"
+                 Cursor="IBeam" />
+
+        <Grid Grid.Row="1" Margin="0,4,0,0">
+          <TextBlock Text="{Binding TimeLabel}" FontSize="9.5"
+                     Foreground="#A68A93A3"
+                     VerticalAlignment="Center" />
+          <Button Style="{DynamicResource TinyLink}"
+                  Content="删除"
+                  HorizontalAlignment="Right"
+                  Command="{x:Static local:NoteCommands.DeleteItem}"
+                  CommandParameter="{Binding}" />
+        </Grid>
+      </Grid>
+    </Border>
+  </DataTemplate>
+
+  <!-- ===== 图片条目 ===== -->
+  <DataTemplate x:Key="ImageItemTemplate" DataType="{x:Type local:NoteItem}">
+    <Border Background="{DynamicResource ItemBg}" CornerRadius="7"
+            Padding="5,5,5,4" Margin="0,0,4,6"
+            BorderBrush="#0F000000" BorderThickness="1">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- 缩略图。
+             用 Button 保证 Command 能正确路由到命令绑定；
+             但 Template 换成纯 Border，避开默认模板的系统灰底和焦点框
+             （那两样会在图片按比例缩放后于两侧露出可见灰条）。
+             HorizontalAlignment=Center 让容器严格贴合图片，多余空间是卡片白底。 -->
+        <Button Grid.Row="0"
+                Command="{x:Static local:NoteCommands.OpenImage}"
+                CommandParameter="{Binding}"
+                Cursor="Hand"
+                ToolTip="点击用系统看图程序打开原图"
+                Background="Transparent"
+                BorderThickness="0"
+                Padding="0"
+                Focusable="False"
+                HorizontalAlignment="Center">
+          <Button.Template>
+            <ControlTemplate TargetType="Button">
+              <Border Background="Transparent" CornerRadius="4" ClipToBounds="True">
+                <ContentPresenter />
+              </Border>
+            </ControlTemplate>
+          </Button.Template>
+
+          <!-- 高度上限 220：给截图更多显示面积，看内容更清楚。
+               超出窗口高度的部分由外层 ScrollViewer 滚动查看，
+               不会再把时间戳/删除按钮顶出可视区（它们随卡片一起滚动）。
+               Stretch=Uniform 保证任意宽高比都不变形。 -->
+          <Image Source="{Binding Thumb}" Stretch="Uniform"
+                 MaxHeight="220"
+                 RenderOptions.BitmapScalingMode="HighQuality" />
+        </Button>
+
+        <Grid Grid.Row="1" Margin="3,4,3,0">
+          <TextBlock Text="{Binding TimeLabel}" FontSize="9.5"
+                     Foreground="#A68A93A3"
+                     VerticalAlignment="Center" />
+          <Button Style="{DynamicResource TinyLink}"
+                  Content="删除"
+                  HorizontalAlignment="Right"
+                  Command="{x:Static local:NoteCommands.DeleteItem}"
+                  CommandParameter="{Binding}" />
+        </Grid>
+      </Grid>
+    </Border>
+  </DataTemplate>
+
+  <local:NoteItemTemplateSelector x:Key="ItemSelector"
+      TextTemplate="{StaticResource TextItemTemplate}"
+      ImageTemplate="{StaticResource ImageItemTemplate}" />
+
+</ResourceDictionary>

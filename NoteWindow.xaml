@@ -1,0 +1,181 @@
+<Window x:Class="FloatNote.NoteWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:FloatNote"
+        Title="便签"
+        Width="300" Height="290"
+        MinWidth="190" MinHeight="46"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        ShowInTaskbar="False"
+        Topmost="True"
+        AllowsTransparency="True"
+        Background="Transparent"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        FontFamily="{DynamicResource UiFont}">
+
+  <!-- WindowChrome：提供原生拖动/边缘缩放手势，外观全自绘。
+       GlassFrameThickness=0 让内容铺满；CaptionHeight 划出标题拖动区。
+
+       关于 AllowsTransparency=True（这是必须的，原因写在这里免得以后又踩）：
+       WPF 的 Window.Opacity 只有在分层窗口下才做真正的 alpha 合成。
+       实测：AllowsTransparency=false + Opacity=0.65 时，卡片色 255 变成 166
+       （=255×0.65），背后桌面 RGB(18) 一个像素都没混入 —— 那只是"变暗"。
+       试过用 WS_EX_LAYERED + SetLayeredWindowAttributes 绕过，但 WPF 的
+       HwndSource 会重置扩展样式（SetWindowLongPtr 返回成功、随即被改回），
+       所以在 WPF 窗口上这条路不可靠。
+       结论：要真透明，只能让 WPF 自己当分层窗口。
+       代价是无法用 DWM 原生圆角，圆角改由内容 Border 自绘（见下方 RootCard）。 -->
+  <!-- [DIAG] 暂时移除 WindowChrome 以定位尺寸异常 -->
+
+  <!-- RootCard：分层窗口下 DWM 圆角失效，改由这层 Border 自绘圆角与底色的。 -->
+  <Border x:Name="RootCard" Background="{DynamicResource CardBg}" CornerRadius="10" ClipToBounds="True">
+  <Grid x:Name="RootGrid" Focusable="True" Background="Transparent">
+    <Grid.RowDefinitions>
+      <RowDefinition x:Name="HeaderRow" Height="34" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <!-- ===== 标题栏 ===== -->
+    <Border Grid.Row="0"
+            Background="Transparent"
+            BorderBrush="{DynamicResource Hairline}"
+            BorderThickness="0,0,0,1"
+            MouseLeftButtonDown="Header_MouseLeftButtonDown">
+      <Grid Margin="10,0,5,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <Ellipse Grid.Column="0" Width="7" Height="7"
+                 Fill="{Binding AccentBrush}"
+                 VerticalAlignment="Center" Margin="0,0,6,0" />
+
+        <TextBlock x:Name="TitleText" Grid.Column="1"
+                   Text="{Binding Title}"
+                   FontSize="12.5" FontWeight="SemiBold"
+                   Foreground="{DynamicResource Ink}"
+                   VerticalAlignment="Center"
+                   TextTrimming="CharacterEllipsis"
+                   MouseLeftButtonDown="Title_MouseLeftButtonDown" />
+
+        <TextBox x:Name="TitleEdit" Grid.Column="1"
+                 Visibility="Collapsed"
+                 VerticalAlignment="Center"
+                 Background="Transparent" BorderThickness="0" Padding="0"
+                 FontSize="12.5" FontWeight="SemiBold"
+                 Foreground="{DynamicResource Ink}"
+                 KeyDown="TitleEdit_KeyDown"
+                 LostFocus="TitleEdit_LostFocus" />
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+          <!-- 新建便签：最常用操作，放在标题栏最左侧（紧邻标题，最好点） -->
+          <Button x:Name="BtnNew" Style="{DynamicResource IconButton}"
+                  ToolTip="新建便签窗口 (Ctrl+Shift+N)"
+                  AutomationProperties.Name="新建便签"
+                  Click="BtnNew_Click">
+            <TextBlock FontFamily="{DynamicResource IconFont}" FontSize="12"
+                       FontWeight="SemiBold" Text="&#xE710;" />
+          </Button>
+
+          <Button x:Name="BtnPin" Style="{DynamicResource IconButton}" ToolTip="取消置顶" AutomationProperties.Name="置顶" Click="BtnPin_Click">
+            <TextBlock x:Name="PinGlyph" FontFamily="{DynamicResource IconFont}" FontSize="12" Text="&#xE840;" />
+          </Button>
+          <Button Style="{DynamicResource IconButton}" ToolTip="截图到本窗 (Ctrl+Shift+S)" AutomationProperties.Name="截图" Click="BtnShot_Click">
+            <TextBlock FontFamily="{DynamicResource IconFont}" FontSize="12" Text="&#xE722;" />
+          </Button>
+          <Button Style="{DynamicResource IconButton}" ToolTip="粘贴 (Ctrl+V)" AutomationProperties.Name="粘贴" Click="BtnPaste_Click">
+            <TextBlock FontFamily="{DynamicResource IconFont}" FontSize="12" Text="&#xE77F;" />
+          </Button>
+          <Button Style="{DynamicResource IconButton}" ToolTip="更多" AutomationProperties.Name="更多" Click="BtnMore_Click">
+            <TextBlock FontFamily="{DynamicResource IconFont}" FontSize="12" Text="&#xE712;" />
+          </Button>
+          <Button Style="{DynamicResource IconButton}" ToolTip="收起 / 展开" AutomationProperties.Name="收起" Click="BtnCollapse_Click">
+            <TextBlock x:Name="CollapseGlyph" FontFamily="{DynamicResource IconFont}" FontSize="10" Text="&#xE70D;" />
+          </Button>
+          <Button Style="{DynamicResource IconButton}" ToolTip="关闭并清空内容" AutomationProperties.Name="关闭" Click="BtnClose_Click">
+            <TextBlock FontFamily="{DynamicResource IconFont}" FontSize="10" Text="&#xE711;" />
+          </Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- ===== 内容区 ===== -->
+    <Grid Grid.Row="1" x:Name="Body">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <!-- 空状态提示 -->
+      <StackPanel x:Name="EmptyHint" Grid.Row="0"
+                  VerticalAlignment="Center" HorizontalAlignment="Center"
+                  IsHitTestVisible="False">
+        <TextBlock FontFamily="{DynamicResource IconFont}" FontSize="22" Text="&#xE722;"
+                   HorizontalAlignment="Center" Foreground="{DynamicResource InkSoft}" />
+        <TextBlock Text="Ctrl+Shift+S 截图到此窗" FontSize="11" Margin="0,9,0,0"
+                   HorizontalAlignment="Center" Foreground="{DynamicResource InkSoft}" />
+        <TextBlock Text="Ctrl+V 粘贴文字或图片" FontSize="11" Margin="0,3,0,0"
+                   HorizontalAlignment="Center" Foreground="{DynamicResource InkSoft}" />
+      </StackPanel>
+
+      <ScrollViewer x:Name="Scroller" Grid.Row="0"
+                    VerticalScrollBarVisibility="Auto"
+                    HorizontalScrollBarVisibility="Disabled"
+                    Padding="8,7,4,2">
+        <ItemsControl x:Name="ItemsHost"
+                      ItemTemplateSelector="{DynamicResource ItemSelector}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <VirtualizingStackPanel />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </ScrollViewer>
+
+      <!-- 底部速记输入 -->
+      <Border Grid.Row="1"
+              BorderBrush="{DynamicResource Hairline}" BorderThickness="0,1,0,0"
+              Padding="9,6,5,6">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+
+          <TextBox x:Name="Composer" Grid.Column="0"
+                   Background="Transparent" BorderThickness="0" Padding="0"
+                   FontSize="12.5" FontFamily="{DynamicResource UiFont}"
+                   Foreground="{DynamicResource Ink}"
+                   CaretBrush="{DynamicResource Ink}"
+                   TextWrapping="Wrap"
+                   AcceptsReturn="False"
+                   MaxHeight="76"
+                   VerticalScrollBarVisibility="Auto"
+                   VerticalContentAlignment="Center"
+                   PreviewKeyDown="Composer_PreviewKeyDown"
+                   TextChanged="Composer_TextChanged"
+                   GotKeyboardFocus="Composer_GotKeyboardFocus"
+                   LostKeyboardFocus="Composer_LostKeyboardFocus" />
+
+          <TextBlock x:Name="ComposerPh" Grid.Column="0"
+                     Text="随手记一条…"
+                     FontSize="12" IsHitTestVisible="False"
+                     VerticalAlignment="Center"
+                     Foreground="#9AA3B2" />
+
+          <Button Grid.Column="1" Style="{DynamicResource IconButton}"
+                  ToolTip="保存" AutomationProperties.Name="保存" Click="BtnSend_Click" Margin="4,0,0,0"
+                  VerticalAlignment="Bottom">
+            <TextBlock FontFamily="{DynamicResource IconFont}" FontSize="12" Text="&#xE724;" />
+          </Button>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+  </Border>
+</Window>
